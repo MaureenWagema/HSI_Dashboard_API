@@ -189,7 +189,7 @@ public function getClaimsPaid(?int $year = null, ?int $month = null): array
                 'account_year',
                 'account_month',
                 'displayAccountNo',
-                DB::raw('SUM(ABS(monthly_balance)) as total')
+                DB::raw('SUM(monthly_balance) as total')
             )
             ->whereIn('displayAccountNo', $allAccounts)
             ->when($year, function($q) use ($year) {
@@ -216,7 +216,7 @@ public function getClaimsPaid(?int $year = null, ?int $month = null): array
                         $change_in_reserves = $periodData['change_in_reserves'] ?? 0;
                         $salvage_costs = $periodData['salvage_costs'] ?? 0;
                         
-                        $periodData['total_claims'] = $claims_paid + $change_in_reserves - $salvage_costs;
+                        $periodData['total_claims'] = $claims_paid + $change_in_reserves + $salvage_costs;
                         $results[] = $periodData;
                     }
                     
@@ -249,7 +249,7 @@ public function getClaimsPaid(?int $year = null, ?int $month = null): array
             $change_in_reserves = $periodData['change_in_reserves'] ?? 0;
             $salvage_costs = $periodData['salvage_costs'] ?? 0;
             
-            $periodData['total_claims'] = $claims_paid + $change_in_reserves - $salvage_costs;
+            $periodData['total_claims'] = $claims_paid + $change_in_reserves + $salvage_costs;
             $results[] = $periodData;
         }
 

@@ -460,13 +460,6 @@ public function getCombinedRatio(Request $request)
                 'total_direct_expenses' => $expenseOverall['total_direct_expenses'] ?? null
             ];
             
-            // Log the structure for debugging
-            \Log::info('Combined Ratio Data:', [
-                'has_data' => isset($combinedData['data']),
-                'has_overall' => isset($combinedData['data']['overall']),
-                'overall_keys' => $combinedOverall ? array_keys($combinedOverall) : []
-            ]);
-            
             return response()->json([
                 'status' => 'success',
                 'data' => [

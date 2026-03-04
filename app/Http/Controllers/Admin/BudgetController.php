@@ -1,5 +1,7 @@
 <?php
 
+//command to run php artisan sync:actual-premiums
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -53,7 +55,6 @@ class BudgetController extends Controller
 
     public function edit(string $id)
     {
-        //
     }
 
    

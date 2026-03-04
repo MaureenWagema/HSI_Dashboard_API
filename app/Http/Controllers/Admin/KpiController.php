@@ -136,11 +136,7 @@ class KpiController extends Controller
         }
     }
 
-    // ==================== KPI ITEMS METHODS ====================
     
-    /**
-     * Get all KPI items
-     */
     public function getKpiItems(Request $request)
     {
         try {

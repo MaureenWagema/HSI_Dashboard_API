@@ -12,6 +12,8 @@ use App\Http\Controllers\Admin\NEPController;
 use App\Http\Controllers\Admin\ActualPremiumController;
 use App\Http\Controllers\Admin\PowerBIController;
 use App\Http\Controllers\Admin\BudgetController;
+use App\Http\Controllers\TatController;
+use App\Http\Controllers\Api\SyncStatusController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,13 +39,19 @@ Route::get('/ratios/combined', [RatiosController::class, 'getCombinedRatio']);
 Route::get('/ratios/overall', [RatiosController::class, 'getOverallRatios']);
 Route::get('/account-mappings', [RatiosController::class, 'getAccountMappings']);
 Route::post('/sync-data', [RatiosController::class, 'syncData']);
-Route::get('/sync-status', [\App\Http\Controllers\Api\SyncStatusController::class, 'getStatus']);
+Route::get('/sync-status', [SyncStatusController::class, 'getStatus']);
+Route::apiResource('budgets', BudgetController::class);
 
-    Route::apiResource('budgets', BudgetController::class);
+// TAT 
+Route::get('/tat-data', [TatController::class, 'getTatData']);
 
 
 // Actual Premium Routes
 Route::get('/actual-premiums', [ActualPremiumController::class, 'getActualPremiums']);
+Route::get('/actual-premiums/departments', [ActualPremiumController::class, 'getDepartments']);
+Route::get('/actual-premiums/test-departments', [ActualPremiumController::class, 'testDepartments']);
+Route::get('/actual-premiums/debug-departments', [ActualPremiumController::class, 'debugDepartmentMapping']);
+Route::get('/actual-premiums/test-truncate', [ActualPremiumController::class, 'testTruncate']);
 Route::post('/actual-premiums/sync', [ActualPremiumController::class, 'syncActualPremiums']);
 
 // Protected routes (requires authentication and superadmin privileges)
@@ -75,6 +83,7 @@ Route::middleware(['auth:api', 'superadmin'])->group(function () {
  //powerbi emmbedding   
 
     Route::get('/powerbi/embed', [PowerBIController::class, 'getEmbedConfig']);
+    Route::get('/powerbi/tat-embed', [PowerBIController::class, 'getTatEmbedConfig']);
 
     // KPI Routes
     Route::prefix('kpi')->group(function () {

@@ -119,11 +119,6 @@ class AccountMappingService
                 $result = DB::connection('sqlsrv')->select(
                     "SELECT TOP 1 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ratio_data'"
                 );
-                if (!empty($result)) {
-                    Log::info('Table exists (checked via INFORMATION_SCHEMA)');
-                    return true;
-                }
-                Log::info('Table does not exist (checked via INFORMATION_SCHEMA)');
             } catch (\Exception $e) {
                 Log::warning('Error checking table existence (INFORMATION_SCHEMA): ' . $e->getMessage());
             }
@@ -132,11 +127,6 @@ class AccountMappingService
                 $result = DB::connection('sqlsrv')->select(
                     "SELECT TOP 1 1 FROM sys.tables WHERE name = 'ratio_data'"
                 );
-                if (!empty($result)) {
-                    Log::info('Table exists (checked via sys.tables)');
-                    return true;
-                }
-                Log::info('Table does not exist (checked via sys.tables)');
             } catch (\Exception $e) {
                 Log::warning('Error checking table existence (sys.tables): ' . $e->getMessage());
             }
@@ -173,7 +163,6 @@ class AccountMappingService
                 SELECT 0 as result, ERROR_MESSAGE() as error_message, ERROR_NUMBER() as error_number;
             END CATCH";
 
-            Log::info('Attempting to create table with SQL: ' . str_replace(["\r", "\n", "  "], ' ', $createTableSQL));
             
             return $this->executeWithRetry(function() use ($tableName) {
                 try {
@@ -206,7 +195,6 @@ class AccountMappingService
                         throw new \Exception('No result returned from table creation query');
                     }
                     
-                    Log::info('SQL Server message: ' . ($result[0]->message ?? 'No message'));
                     
                     $verificationMethods = [
                         'INFORMATION_SCHEMA' => "SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{$tableName}'",
@@ -220,11 +208,6 @@ class AccountMappingService
                     foreach ($verificationMethods as $method => $query) {
                         try {
                             $check = DB::connection('sqlsrv')->select($query);
-                            if (!empty($check)) {
-                                Log::info("Table verified using {$method}");
-                                $verified = true;
-                                break;
-                            }
                         } catch (\Exception $e) {
                             $lastError = $e->getMessage();
                             Log::warning("Verification using {$method} failed: {$lastError}");
@@ -235,7 +218,6 @@ class AccountMappingService
                         throw new \Exception('Table creation verification failed using all methods. Last error: ' . $lastError);
                     }
                     
-                    Log::info('Table creation and verification completed successfully');
                     return true;
                     
                 } catch (\Exception $e) {
@@ -316,11 +298,7 @@ class AccountMappingService
                         $exists = DB::connection('sqlsrv')->select($checkSql, [$name]);
                         
                         if (empty($exists)) {
-                            Log::info("Creating index/constraint: $name");
                             DB::connection('sqlsrv')->statement($index['sql']);
-                            Log::info("Successfully created index/constraint: $name");
-                        } else {
-                            Log::info("Index/constraint already exists: $name");
                         }
                         return true;
                     }, 3, 2000); 
@@ -380,18 +358,14 @@ class AccountMappingService
 
     public function syncToSqlServer($year = null, $month = null)
     {
-        Log::info('Starting account mappings sync...');
         
         try {
             $data = $this->getAccountMappings($year, $month);
             
             if ($data->isEmpty()) {
-                $message = 'No data found to sync';
-                Log::info($message);
-                return ['success' => false, 'message' => $message];
+                return ['success' => false, 'message' => 'No data found to sync'];
             }
 
-            Log::info('Ensuring table exists...');
             $this->ensureTableExists();
             
             $chunkSize = 5; 
@@ -400,19 +374,17 @@ class AccountMappingService
             $processed = 0;
             $totalRecords = count($data);
             
-            Log::info("Processing $totalRecords records in chunks of $chunkSize...");
             
             $chunks = $data->chunk($chunkSize);
             $totalChunks = $chunks->count();
             
             foreach ($chunks as $chunkIndex => $chunk) {
-                Log::info(sprintf('Processing chunk %d of %d', $chunkIndex + 1, $totalChunks));
                 
                 foreach ($chunk as $item) {
                     $processed++;
                     
-                    if ($processed % 10 === 0) {
-                        Log::info("Processed $processed of $totalRecords records...");
+                    if ($processed % 50 === 0) {
+                        // Progress tracking every 50 records instead of 10
                     }
                     
                     $itemArray = is_object($item) ? (array)$item : $item;
@@ -504,7 +476,6 @@ class AccountMappingService
                 throw new \Exception("Completed with $failed errors. Check the logs for details.");
             }
 
-            Log::info("Successfully synced {$totalSynced} records to SQL Server");
             return [
                 'success' => true, 
                 'message' => "Successfully synced {$totalSynced} records",

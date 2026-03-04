@@ -57,13 +57,6 @@ class SyncDataCommand extends Command
             if ($result['success']) {
                 $this->info("✅ Sync completed successfully!");
                 $this->info("Records synced: " . ($result['synced_count'] ?? 'Unknown'));
-                
-                // Log success
-                Log::info('Data sync completed successfully', [
-                    'year' => $year,
-                    'month' => $month,
-                    'synced_count' => $result['synced_count'] ?? 0
-                ]);
             } else {
                 $this->error("❌ Sync failed: " . $result['message']);
                 

@@ -7,52 +7,50 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
 {
-    
     protected $commands = [
         Commands\SyncAccountMappings::class,
         Commands\SyncDataCommand::class,
         Commands\SyncActualPremiums::class,
+        Commands\SyncTatData::class,
     ];
 
-    
     protected function schedule(Schedule $schedule)
     {
+        // TAT Data Sync - Daily at 2:30 AM
+        $schedule->command('sync:tat-data')
+                 ->dailyAt('02:30')
+                 ->timezone('Africa/Nairobi')
+                 ->withoutOverlapping()
+                 ->appendOutputTo(storage_path('logs/tat-data.log'))
+                 ->onFailure(function () {
+                     \Log::error('TAT data sync failed');
+                 });
+
+        $schedule->command('sync:actual-premiums')
+                 ->dailyAt('03:00')
+                 ->timezone('Africa/Nairobi')
+                 ->withoutOverlapping()
+                 ->appendOutputTo(storage_path('logs/actual-premiums.log'))
+                 ->onFailure(function () {
+                     \Log::error('Actual premiums sync failed');
+                 });
+
+        // Account Mappings Sync - Daily at 2:00 AM
         $schedule->command('sync:account-mappings')
                  ->dailyAt('02:00')
                  ->timezone('Africa/Nairobi')
-                 ->onSuccess(function () {
-                     \Log::info('Account mappings sync completed successfully');
-                 })
+                 ->withoutOverlapping()
+                 ->appendOutputTo(storage_path('logs/account-mappings.log'))
                  ->onFailure(function () {
                      \Log::error('Account mappings sync failed');
                  });
 
-        $schedule->command('sync:info')
-                 ->everyFiveMinutes()
-                 ->withoutOverlapping()
-                 ->appendOutputTo(storage_path('logs/sync-info.log'))
-                 ->onSuccess(function () {
-                     \Log::info('Info sync completed successfully');
-                 })
-                 ->onFailure(function () {
-                     \Log::error('Info sync failed');
-                 });
-                 
-        $schedule->command('sync:info --force')
-                 ->dailyAt('03:00')
-                 ->appendOutputTo(storage_path('logs/sync-info-full.log'))
-                 ->onSuccess(function () {
-                     \Log::info('Full info sync completed successfully');
-                 });
-
+        // Current Month Data Sync - Daily at 1:00 AM + Every 6 hours
         $schedule->command('data:sync --auto')
-                 ->dailyAt('01:00') 
+                 ->dailyAt('01:00')
                  ->timezone('Africa/Nairobi')
                  ->withoutOverlapping()
                  ->appendOutputTo(storage_path('logs/data-sync.log'))
-                 ->onSuccess(function () {
-                     \Log::info('Daily data sync completed successfully');
-                 })
                  ->onFailure(function () {
                      \Log::error('Daily data sync failed');
                  });
@@ -67,7 +65,6 @@ class Kernel extends ConsoleKernel
                  ->appendOutputTo(storage_path('logs/data-sync-frequent.log'));
     }
 
-    
     protected function commands()
     {
         $this->load(__DIR__.'/Commands');
