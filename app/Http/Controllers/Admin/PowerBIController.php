@@ -4,182 +4,147 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException; 
+use App\Services\PowerBIService;
 use Illuminate\Support\Facades\Log;
 
 class PowerBIController extends Controller
 {
+    protected $powerBI;
+
+    public function __construct(PowerBIService $powerBI)
+    {
+        $this->powerBI = $powerBI;
+    }
+
     
     
     public function getEmbedConfig(Request $request)
     {
-
-        
         try {
-        
-        $tenantId     = env('POWERBI_TENANT_ID');
-        $clientId     = env('POWERBI_CLIENT_ID');
-        $clientSecret = env('POWERBI_CLIENT_SECRET');
-        $reportId     = env('POWERBI_REPORT_ID');
-        $groupId      = env('POWERBI_GROUP_ID');
-
-
-       
-
-        $client = new \GuzzleHttp\Client();
-
-            $tokenResponse = $client->post("https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token", [
-                'form_params' => [
-                    'grant_type'    => 'client_credentials',
-                    'client_id'     => $clientId,
-                    'client_secret' => $clientSecret,
-                    'scope'         => 'https://analysis.windows.net/powerbi/api/.default',
-                ], 
-            ]);
-
-$aadData = json_decode($tokenResponse->getBody()->getContents(), true);
-        $aadToken = $aadData['access_token'] ?? throw new \Exception('No access_token from Azure');
+            $embedConfig = $this->powerBI->getMainDashboardEmbedConfig();
             
-        $reportResponse = $client->get("https://api.powerbi.com/v1.0/myorg/groups/{$groupId}/reports/{$reportId}", [
-            'headers' => [
-                'Authorization' => "Bearer {$aadToken}",
-                'Content-Type'  => 'application/json',
-            ],
-        ]);
-
-        $reportData = json_decode($reportResponse->getBody()->getContents(), true);
-        $datasetId = $reportData['datasetId'] ?? throw new \Exception('No datasetId found in report response');
-
-
-            $embedResponse = $client->post('https://api.powerbi.com/v1.0/myorg/GenerateToken', [
-                'headers' => [
-                    'Authorization' => "Bearer {$aadToken}",
-                    'Content-Type'  => 'application/json',
-                ],
-                'json' => [
-                    'reports' => [
-                        ['id' => $reportId]
-                    ],
-                    'datasets' => [
-                        ['id' => $datasetId]
-                    ],
-                    'targetWorkspaces' => [
-                        ['id' => $groupId]
-                    ],
-                    'lifetimeInMinutes' => 60,          
-                    'accessLevel'       => 'View',
-                   
-                ],
+            Log::info('Power BI main dashboard embed config served', [
+                'cached' => isset($embedConfig['generatedAt']),
+                'expires' => $embedConfig['expires'] ?? null,
             ]);
 
-            $embedData = json_decode($embedResponse->getBody()->getContents(), true);
+            return response()->json($embedConfig);
 
-            $embedUrl = "https://app.powerbi.com/reportEmbed?reportId={$reportId}&groupId={$groupId}";
-
-            return response()->json([
-                'accessToken' => $embedData['token'],
-                'embedUrl'    => $embedUrl,
-                'reportId'    => $reportId,
-                'expires'     => $embedData['expiration'], 
-            ]);
-
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-        \Log::error('Guzzle error in Power BI', [
-            'message' => $e->getMessage(),
-            'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null,
-        ]);
-        return response()->json(['error' => 'External API error', 'details' => $e->getMessage()], 500);
-    } catch (\Exception $e) {
-        \Log::error('General error in Power BI embed', [
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ]);
-        return response()->json(['error' => $e->getMessage()], 500);
-    }
-    
-    }
-    
-    public function getTatEmbedConfig(Request $request)
-    {
-        try {
-            
-            $tenantId     = env('POWERBI_TENANT_ID');
-            $clientId     = env('POWERBI_CLIENT_ID');
-            $clientSecret = env('POWERBI_CLIENT_SECRET');
-            $reportId     = env('POWERBI_REPORT_ID_TAT');
-            $groupId      = env('POWERBI_GROUP_ID_TAT');
-
-
-            $client = new \GuzzleHttp\Client();
-
-            $tokenResponse = $client->post("https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token", [
-                'form_params' => [
-                    'grant_type'    => 'client_credentials',
-                    'client_id'     => $clientId,
-                    'client_secret' => $clientSecret,
-                    'scope'         => 'https://analysis.windows.net/powerbi/api/.default',
-                ], 
-            ]);
-
-            $aadData = json_decode($tokenResponse->getBody()->getContents(), true);
-            $aadToken = $aadData['access_token'] ?? throw new \Exception('No access_token from Azure');
-            
-            
-            $reportResponse = $client->get("https://api.powerbi.com/v1.0/myorg/groups/{$groupId}/reports/{$reportId}", [
-                'headers' => [
-                    'Authorization' => "Bearer {$aadToken}",
-                    'Content-Type'  => 'application/json',
-                ],
-            ]);
-
-            $reportData = json_decode($reportResponse->getBody()->getContents(), true);
-            $datasetId = $reportData['datasetId'] ?? throw new \Exception('No datasetId found in TAT report response');
-
-
-            $embedResponse = $client->post('https://api.powerbi.com/v1.0/myorg/GenerateToken', [
-                'headers' => [
-                    'Authorization' => "Bearer {$aadToken}",
-                    'Content-Type'  => 'application/json',
-                ],
-                'json' => [
-                    'reports' => [
-                        ['id' => $reportId]
-                    ],
-                    'datasets' => [
-                        ['id' => $datasetId]
-                    ],
-                    'targetWorkspaces' => [
-                        ['id' => $groupId]
-                    ],
-                    'lifetimeInMinutes' => 60,          
-                    'accessLevel'       => 'View',
-                ],
-            ]);
-
-            $embedData = json_decode($embedResponse->getBody()->getContents(), true);
-
-            $embedUrl = "https://app.powerbi.com/reportEmbed?reportId={$reportId}&groupId={$groupId}";
-
-            return response()->json([
-                'accessToken' => $embedData['token'],
-                'embedUrl'    => $embedUrl,
-                'reportId'    => $reportId,
-                'expires'     => $embedData['expiration'], 
-            ]);
-
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            \Log::error('Guzzle error in Power BI TAT', [
-                'message' => $e->getMessage(),
-                'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null,
-            ]);
-            return response()->json(['error' => 'External API error', 'details' => $e->getMessage()], 500);
         } catch (\Exception $e) {
-            \Log::error('General error in Power BI TAT embed', [
+            Log::error('Power BI main dashboard embed failed', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            return response()->json(['error' => $e->getMessage()], 500);
+            
+            return response()->json([
+                'error' => 'Failed to load Power BI dashboard',
+                'details' => config('app.debug') ? $e->getMessage() : 'Please try again later'
+            ], 500);
+        }
+    }
+
+   
+
+    public function getTatEmbedConfig(Request $request)
+    {
+        try {
+            $embedConfig = $this->powerBI->getTatReportEmbedConfig();
+            
+            Log::info('Power BI TAT report embed config served', [
+                'cached' => isset($embedConfig['generatedAt']),
+                'expires' => $embedConfig['expires'] ?? null,
+            ]);
+
+            return response()->json($embedConfig);
+
+        } catch (\Exception $e) {
+            Log::error('Power BI TAT report embed failed', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to load Power BI TAT report',
+                'details' => config('app.debug') ? $e->getMessage() : 'Please try again later'
+            ], 500);
+        }
+    }
+
+
+    public function clearCache(Request $request)
+    {
+        try {
+            $this->powerBI->clearCache();
+            
+            Log::info('Power BI cache cleared by admin');
+            
+            return response()->json([
+                'message' => 'Power BI cache cleared successfully',
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to clear Power BI cache', [
+                'message' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to clear cache',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    
+    public function getCacheStatus(Request $request)
+    {
+        try {
+            $status = $this->powerBI->getCacheStatus();
+            
+            return response()->json([
+                'cache_status' => $status,
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get Power BI cache status', [
+                'message' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to get cache status',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Refresh Power BI tokens if needed (admin endpoint)
+     */
+    public function refreshTokens(Request $request)
+    {
+        try {
+            $results = $this->powerBI->refreshTokensIfNeeded();
+            
+            Log::info('Power BI token refresh completed', [
+                'results' => $results
+            ]);
+            
+            return response()->json([
+                'message' => 'Power BI token refresh completed',
+                'results' => $results,
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to refresh Power BI tokens', [
+                'message' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to refresh tokens',
+                'details' => $e->getMessage()
+            ], 500);
         }
     }
 }

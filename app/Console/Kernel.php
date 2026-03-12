@@ -12,6 +12,7 @@ class Kernel extends ConsoleKernel
         Commands\SyncDataCommand::class,
         Commands\SyncActualPremiums::class,
         Commands\SyncTatData::class,
+        Commands\RefreshPowerBITokens::class,
     ];
 
     protected function schedule(Schedule $schedule)
@@ -63,6 +64,31 @@ class Kernel extends ConsoleKernel
                      return $hour >= 6 && $hour <= 22;
                  })
                  ->appendOutputTo(storage_path('logs/data-sync-frequent.log'));
+
+        // Power BI Token Refresh - Every 30 minutes during business hours
+        $schedule->command('powerbi:refresh-tokens')
+                 ->everyThirtyMinutes()
+                 ->timezone('Africa/Nairobi')
+                 ->withoutOverlapping()
+                 ->when(function () {
+                     $hour = now()->hour;
+                     return $hour >= 6 && $hour <= 22; // Business hours 6AM - 10PM
+                 })
+                 ->appendOutputTo(storage_path('logs/powerbi-token-refresh.log'))
+                 ->onSuccess(function () {
+                     \Log::info('Power BI token refresh completed successfully');
+                 })
+                 ->onFailure(function () {
+                     \Log::error('Power BI token refresh failed');
+                 });
+
+        // Power BI Token Refresh - Force refresh at midnight
+        $schedule->command('powerbi:refresh-tokens --force')
+                 ->dailyAt('00:05')
+                 ->timezone('Africa/Nairobi')
+                 ->withoutOverlapping()
+                 ->appendOutputTo(storage_path('logs/powerbi-token-refresh.log'))
+                 ->description('Daily forced refresh of Power BI tokens');
     }
 
     protected function commands()

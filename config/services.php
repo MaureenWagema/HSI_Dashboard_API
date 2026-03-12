@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'powerbi' => [
+        'tenant_id' => env('POWERBI_TENANT_ID'),
+        'client_id' => env('POWERBI_CLIENT_ID'),
+        'client_secret' => env('POWERBI_CLIENT_SECRET'),
+        'report_id' => env('POWERBI_REPORT_ID'),
+        'group_id' => env('POWERBI_GROUP_ID'),
+        'tat_report_id' => env('POWERBI_REPORT_ID_TAT'),
+        'tat_group_id' => env('POWERBI_GROUP_ID_TAT'),
+    ],
+
 ];

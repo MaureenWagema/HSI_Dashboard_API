@@ -45,6 +45,13 @@ Route::apiResource('budgets', BudgetController::class);
 // TAT 
 Route::get('/tat-data', [TatController::class, 'getTatData']);
 
+// Power BI Public Routes (for testing)
+Route::get('/powerbi/embed', [PowerBIController::class, 'getEmbedConfig']);
+Route::get('/powerbi/tat-embed', [PowerBIController::class, 'getTatEmbedConfig']);
+Route::get('/powerbi/cache-status', [PowerBIController::class, 'getCacheStatus']);
+Route::post('/powerbi/clear-cache', [PowerBIController::class, 'clearCache']);
+Route::post('/powerbi/refresh-tokens', [PowerBIController::class, 'refreshTokens']);
+
 
 // Actual Premium Routes
 Route::get('/actual-premiums', [ActualPremiumController::class, 'getActualPremiums']);
@@ -79,11 +86,6 @@ Route::middleware(['auth:api', 'superadmin'])->group(function () {
 //auth
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
-
- //powerbi emmbedding   
-
-    Route::get('/powerbi/embed', [PowerBIController::class, 'getEmbedConfig']);
-    Route::get('/powerbi/tat-embed', [PowerBIController::class, 'getTatEmbedConfig']);
 
     // KPI Routes
     Route::prefix('kpi')->group(function () {
