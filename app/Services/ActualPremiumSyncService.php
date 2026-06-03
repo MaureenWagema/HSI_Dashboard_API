@@ -38,7 +38,7 @@ class ActualPremiumSyncService
                 $this->tracker->completeSync($jobId, $lastSyncId);
                 return $jobId;
             }
-              
+            
             $processed = 0;
             $offset = 0;
             $currentSyncId = uniqid('sync_', true);
@@ -78,8 +78,7 @@ class ActualPremiumSyncService
         $query = DB::connection('mysql')
             ->table('debitmastinfo d')
             ->join('classinfo c', 'c.class_code', '=', 'd.class_code')
-            ->join('bustypeinfo b', 'b.bustype', '=', 'd.bustype')
-            ->join('commdeptinfo e', 'e.commdept_code', '=', 'c.commdept_code');
+            ->join('bustypeinfo b', 'b.bustype', '=', 'd.bustype');
             
         if ($lastSyncTimestamp) {
             $query->where('d.last_modified', '>', $lastSyncTimestamp);
@@ -92,9 +91,7 @@ class ActualPremiumSyncService
     {
         $query = "
             SELECT 
-                d.Debit_ID,
-                e.commdept_name AS department, 
-                c.description AS sub_department,
+                c.description AS department, 
                 d.account_year, 
                 d.account_month, 
                 b.bustype_description AS business, 
@@ -108,7 +105,6 @@ class ActualPremiumSyncService
             FROM classinfo c
             RIGHT JOIN debitmastinfo d ON c.class_code = d.class_code
             RIGHT JOIN bustypeinfo b ON b.bustype = d.bustype
-            RIGHT JOIN commdeptinfo e ON e.commdept_code = c.commdept_code
         ";
         
         $bindings = [];
@@ -136,17 +132,15 @@ class ActualPremiumSyncService
     protected function upsertRecord(object $record, string $syncId): void
     {
         $data = [
-            'Debit_ID' => $record->Debit_ID,
             'department' => $record->department,
-            'sub_department' => $record->sub_department,
             'account_year' => $record->account_year,
             'account_month' => $record->account_month,
             'business' => $record->business,
             'actual_premium' => $record->actual_premium,
             'policy_no' => $record->policy_no,
             'Name' => $record->Name,
-            'GrossAmount' => $record->GrossAmount ?? 0,
-            'NetAmount' => $record->NetAmount ?? 0,
+            'GrossAmount' => $record->GrossAmount,
+            'NetAmount' => $record->NetAmount,
             'sync_id' => $syncId,
             'updated_at' => now()
         ];

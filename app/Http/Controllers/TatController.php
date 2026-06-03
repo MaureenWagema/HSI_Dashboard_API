@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\DB;
 
 class TatController extends Controller
 {
-    
+    /**
+     * Get TAT (Turnaround Time) data for claims with formal offers
+     */
     public function getTatData()
     {
         $tatData = DB::select("

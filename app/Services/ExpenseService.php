@@ -97,6 +97,7 @@ class ExpenseService
                     $result['overall']['nep'] += $nepValue;
                 }
                 
+                // Free up memory
                 if (function_exists('gc_collect_cycles')) {
                     gc_collect_cycles();
                 }

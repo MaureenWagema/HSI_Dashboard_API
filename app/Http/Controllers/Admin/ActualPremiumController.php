@@ -18,6 +18,8 @@ class ActualPremiumController extends Controller
         try {
             $jobId = uniqid('sync_', true);
             
+            // Log the start of sync
+            Log::info("Starting actual premium sync with job ID: {$jobId}");
             
             // Dispatch the sync job to run in background
             $this->dispatchSyncJob($jobId);
@@ -58,12 +60,11 @@ class ActualPremiumController extends Controller
             $batchCount = 0;
 
             do {
+                Log::info("Processing batch " . ($batchCount + 1) . " (offset: {$offset}) - Job: {$jobId}");
                 
                 $query = "
                     SELECT 
-                        d.Debit_ID,
                         e.commdept_name AS department, 
-                        c.description AS sub_department,
                         d.account_year, 
                         d.account_month, 
                         b.bustype_description AS business, 
@@ -83,6 +84,7 @@ class ActualPremiumController extends Controller
                 $mysqlData = DB::connection('mysql')->select($query);
 
                 if (empty($mysqlData)) {
+                    Log::info("No more data found. Sync completed - Job: {$jobId}");
                     break;
                 }
 
@@ -102,22 +104,29 @@ class ActualPremiumController extends Controller
                     }
                     
                     $insertData[] = [
-                        'Debit_ID' => $row->Debit_ID,
                         'department' => $row->department,
-                        'sub_department' => $row->sub_department,
                         'account_year' => $row->account_year,
                         'account_month' => $row->account_month,
                         'business' => $row->business,
                         'actual_premium' => $row->actual_premium,
                         'policy_no' => $row->policy_no,
                         'Name' => $row->Name,
-                        'GrossAmount' => $row->GrossAmount ?? 0,
-                        'NetAmount' => $row->NetAmount ?? 0,
+                        'GrossAmount' => $row->GrossAmount,
+                        'NetAmount' => $row->NetAmount,
                         'created_at' => now(),
                         'updated_at' => now()
                     ];
                 }
                 
+                // Log department statistics for this batch
+                Log::info("Batch {$batchCount} department stats - Job: {$jobId}", [
+                    'batch_number' => $batchCount + 1,
+                    'total_records' => count($mysqlData),
+                    'valid_departments' => $validDeptCount,
+                    'null_departments' => $nullDeptCount,
+                    'unique_departments' => count($deptStats),
+                    'department_breakdown' => $deptStats
+                ]);
 
                 // Use smaller chunks and transaction for each batch
                 if (!empty($insertData)) {
@@ -138,11 +147,13 @@ class ActualPremiumController extends Controller
 
                 // Safety check to prevent infinite loops
                 if ($batchCount >= $maxBatches) {
+                    Log::info("Reached maximum batch limit ({$maxBatches}). Stopping sync - Job: {$jobId}");
                     break;
                 }
 
             } while (true);
 
+            Log::info("Sync completed successfully - Job: {$jobId}, Total synced: {$totalSynced}");
             
         } catch (\Exception $e) {
             Log::error("Error in sync job {$jobId}: " . $e->getMessage());
@@ -415,9 +426,7 @@ class ActualPremiumController extends Controller
         try {
             $query = "
                 SELECT TOP 100
-                    Debit_ID,
                     department, 
-                    sub_department,
                     account_year, 
                     account_month, 
                     business, 
@@ -458,9 +467,7 @@ class ActualPremiumController extends Controller
         try {
             $query = "
                 SELECT 
-                    d.Debit_ID,
                     e.commdept_name AS department, 
-                    c.description AS sub_department,
                     d.account_year, 
                     d.account_month, 
                     b.bustype_description AS business, 

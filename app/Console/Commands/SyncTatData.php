@@ -42,13 +42,14 @@ class SyncTatData extends Command
 
             $this->info('Found ' . count($tatData) . ' records in MySQL');
 
-            $this->info('Syncing TAT data to SQL Server (updates only)...');
+            $this->info('Clearing existing TAT data in SQL Server...');
+            Tat::truncate();
+
+            $this->info('Inserting data into SQL Server...');
             
             $batchSize = 100;
             $batches = array_chunk($tatData, $batchSize);
             $processedCount = 0;
-            $updatedCount = 0;
-            $insertedCount = 0;
             $skippedCount = 0;
             
             foreach ($batches as $index => $batch) {
@@ -56,61 +57,24 @@ class SyncTatData extends Command
                 
                 foreach ($batch as $record) {
                     try {
+                        Tat::create([
+                            'Claim_No' => $record->Claim_No,
+                            'Policy_No' => $record->Policy_No,
+                            'Name' => $record->Name,
+                            'Dept' => $record->Dept,
+                            'Date_Reported' => $record->Date_Reported,
+                            'Offer_Date' => $record->Offer_Date,
+                            'statusdescription' => $record->statusdescription,
+                            'Time_to_Make_Offer' => $record->Time_to_Make_Offer
+                        ]);
                         $processedCount++;
-                        
-                        // Try to update existing record first
-                        $updated = DB::connection('sqlsrv')->update(
-                            "UPDATE tat WITH (ROWLOCK) 
-                             SET Policy_No = ?, 
-                                 Name = ?, 
-                                 Dept = ?, 
-                                 Date_Reported = ?, 
-                                 Offer_Date = ?, 
-                                 statusdescription = ?, 
-                                 Time_to_Make_Offer = ?, 
-                                 updated_at = ?
-                             WHERE Claim_No = ?",
-                            [
-                                $record->Policy_No,
-                                $record->Name,
-                                $record->Dept,
-                                $record->Date_Reported,
-                                $record->Offer_Date,
-                                $record->statusdescription,
-                                $record->Time_to_Make_Offer,
-                                now()->toDateTimeString(),
-                                $record->Claim_No
-                            ]
-                        );
-
-                        if ($updated > 0) {
-                            $updatedCount++;
-                        } else {
-                            // Insert new record if not found
-                            try {
-                                Tat::create([
-                                    'Claim_No' => $record->Claim_No,
-                                    'Policy_No' => $record->Policy_No,
-                                    'Name' => $record->Name,
-                                    'Dept' => $record->Dept,
-                                    'Date_Reported' => $record->Date_Reported,
-                                    'Offer_Date' => $record->Offer_Date,
-                                    'statusdescription' => $record->statusdescription,
-                                    'Time_to_Make_Offer' => $record->Time_to_Make_Offer
-                                ]);
-                                $insertedCount++;
-                            } catch (\Exception $e) {
-                                // Skip duplicates
-                                if (strpos($e->getMessage(), 'duplicate key') !== false) {
-                                    $skippedCount++;
-                                    continue;
-                                }
-                                throw $e;
-                            }
-                        }
                     } catch (\Exception $e) {
-                        $this->error("Error processing record {$record->Claim_No}: " . $e->getMessage());
-                        continue;
+                        // Skip duplicates
+                        if (strpos($e->getMessage(), 'duplicate key') !== false) {
+                            $skippedCount++;
+                            continue;
+                        }
+                        throw $e;
                     }
                 }
             }
@@ -118,8 +82,6 @@ class SyncTatData extends Command
             $this->info('TAT data sync completed successfully!');
             $this->info('Total records found in MySQL: ' . count($tatData));
             $this->info('Records processed: ' . $processedCount);
-            $this->info('Records updated: ' . $updatedCount);
-            $this->info('Records inserted: ' . $insertedCount);
             $this->info('Duplicates skipped: ' . $skippedCount);
 
             $totalRecords = Tat::count();
